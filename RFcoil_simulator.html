@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>핵스핀 세차운동 · 라모어 공명 시뮬레이터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #080B12;
+    --panel: #0F1520;
+    --panel-2: #131A27;
+    --border: #212B3A;
+    --text: #E7ECF4;
+    --text-dim: #7C879B;
+    --text-dimmer: #4E5A6E;
+    --up: #4FD1C5;
+    --up-glow: rgba(79,209,197,0.35);
+    --down: #F472B6;
+    --down-glow: rgba(244,114,182,0.35);
+    --amber: #FBBF24;
+    --amber-glow: rgba(251,191,36,0.35);
+    --danger: #EF4444;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  #app{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  header{
+    padding: 22px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0B0F17 0%, #080B12 100%);
+  }
+  header h1{
+    margin:0; font-size: 19px; font-weight:700; letter-spacing:0.2px;
+    display:flex; align-items:center; gap:10px;
+  }
+  header h1 .dot{
+    width:8px; height:8px; border-radius:50%;
+    background: var(--up); box-shadow:0 0 10px var(--up-glow);
+  }
+  header p{
+    margin:6px 0 0; color:var(--text-dim); font-size:13px; line-height:1.5;
+    max-width: 760px;
+  }
+
+  main{
+    flex:1;
+    display:grid;
+    grid-template-columns: 320px 1fr;
+    gap:0;
+  }
+  @media (max-width: 880px){
+    main{ grid-template-columns: 1fr; }
+  }
+
+  /* ---- Controls ---- */
+  #controls{
+    border-right:1px solid var(--border);
+    padding: 20px;
+    display:flex; flex-direction:column; gap:20px;
+    background: var(--panel);
+    overflow-y:auto;
+  }
+  .group{
+    background: var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 14px 16px;
+  }
+  .group-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:0.08em;
+    color: var(--text-dim); font-weight:600; margin-bottom:10px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .nucleus-grid{
+    display:grid; grid-template-columns: repeat(5,1fr); gap:6px;
+  }
+  .nucleus-btn{
+    background: #0B111B; border:1px solid var(--border); border-radius:7px;
+    color: var(--text-dim); cursor:pointer; padding:8px 2px;
+    font-family:'JetBrains Mono', monospace; font-size:12px; text-align:center;
+    transition: all .15s ease;
+  }
+  .nucleus-btn sup{ font-size:9px; }
+  .nucleus-btn.active{
+    background: rgba(79,209,197,0.12); border-color: var(--up); color: var(--up);
+    box-shadow: 0 0 0 1px var(--up) inset;
+  }
+  .nucleus-btn:hover{ color: var(--text); border-color:#3A4658; }
+
+  .row{
+    display:flex; align-items:baseline; justify-content:space-between;
+    font-size:12.5px; color: var(--text-dim); margin-bottom:6px;
+  }
+  .row b{ color: var(--text); font-family:'JetBrains Mono', monospace; font-weight:500; }
+
+  input[type=range]{
+    width:100%; -webkit-appearance:none; height:4px; border-radius:2px;
+    background: #1B2534; outline:none; margin: 4px 0 2px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+    background: var(--up); cursor:pointer; box-shadow: 0 0 8px var(--up-glow);
+    border: 2px solid #061014;
+  }
+  input[type=range]#pulseFreq::-webkit-slider-thumb{
+    background: var(--amber); box-shadow: 0 0 8px var(--amber-glow);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%; background: var(--up); border:2px solid #061014; cursor:pointer;
+  }
+
+  .readout{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:8px 0; border-top:1px dashed var(--border);
+    font-size:12.5px; color:var(--text-dim);
+  }
+  .readout:first-of-type{ border-top:none; }
+  .readout b{ font-family:'JetBrains Mono', monospace; color:var(--text); font-size:13px; }
+
+  .bigfreq{
+    font-family:'JetBrains Mono', monospace; font-size: 30px; font-weight:700;
+    color: var(--up); text-shadow: 0 0 18px var(--up-glow); line-height:1.1;
+  }
+  .bigfreq span{ font-size:14px; color: var(--text-dim); font-weight:400; margin-left:6px;}
+
+  #pulseBtn{
+    width:100%; padding:13px; border-radius:8px; border:1px solid var(--border);
+    background:#0B111B; color:var(--text); font-family:'Space Grotesk',sans-serif;
+    font-size:13.5px; font-weight:600; cursor:pointer; user-select:none;
+    transition: all .12s ease; letter-spacing:0.2px;
+  }
+  #pulseBtn:active, #pulseBtn.pulsing{
+    background: rgba(251,191,36,0.14); border-color: var(--amber); color: var(--amber);
+    box-shadow: 0 0 16px var(--amber-glow) inset;
+  }
+  .snapbtn{
+    width:100%; margin-top:8px; padding:8px; border-radius:7px; border:1px dashed var(--border);
+    background:transparent; color:var(--text-dim); font-size:11.5px; cursor:pointer;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .snapbtn:hover{ color:var(--up); border-color:var(--up); }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:20px; font-size:11.5px; font-weight:600;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .badge .b-dot{ width:6px; height:6px; border-radius:50%; }
+  .badge.off{ background:#141B27; color:var(--text-dimmer); }
+  .badge.off .b-dot{ background: var(--text-dimmer); }
+  .badge.on{ background: rgba(251,191,36,0.14); color:var(--amber); }
+  .badge.on .b-dot{ background: var(--amber); box-shadow:0 0 6px var(--amber-glow); animation: blink 1s infinite; }
+  @keyframes blink{ 50%{opacity:0.3;} }
+
+  #resetBtn{
+    background:none; border:none; color:var(--text-dimmer); font-size:11px; cursor:pointer;
+    text-decoration:underline; padding:0;
+  }
+  #resetBtn:hover{ color:var(--text-dim); }
+
+  /* ---- Stage ---- */
+  #stage{
+    position:relative;
+    display:flex; flex-direction:column;
+    background:
+      radial-gradient(ellipse at 50% 30%, #0D1420 0%, var(--bg) 65%);
+  }
+  #canvasWrap{
+    position:relative; flex:1; min-height:440px;
+    cursor: none;
+  }
+  canvas#macro{ width:100%; height:100%; display:block; }
+
+  #resonanceFlash{
+    position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse at 50% 45%, var(--amber-glow) 0%, transparent 60%);
+    opacity:0; transition: opacity .4s ease;
+  }
+
+  #loupe{
+    position:absolute; width:190px; height:190px; border-radius:50%;
+    border:2px solid rgba(231,236,244,0.35);
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.5), 0 8px 30px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.5);
+    pointer-events:none; opacity:0; transition: opacity .18s ease;
+    overflow:hidden; background:#050810;
+  }
+  #loupe canvas{ width:100%; height:100%; display:block; }
+  #loupe .loupe-label{
+    position:absolute; bottom:6px; left:0; right:0; text-align:center;
+    font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(231,236,244,0.55);
+    letter-spacing:0.05em; pointer-events:none;
+  }
+
+  #hint{
+    position:absolute; top:14px; left:16px; font-size:11.5px; color:var(--text-dimmer);
+    font-family:'JetBrains Mono',monospace; display:flex; align-items:center; gap:6px;
+    background: rgba(15,21,32,0.7); border:1px solid var(--border); padding:6px 10px; border-radius:20px;
+  }
+
+  #footerStats{
+    display:grid; grid-template-columns: repeat(5,1fr);
+    border-top:1px solid var(--border); background:var(--panel);
+  }
+  .stat{
+    padding:12px 18px; border-right:1px solid var(--border);
+  }
+  .stat:last-child{ border-right:none; }
+  .stat .lbl{ font-size:10.5px; color:var(--text-dimmer); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;}
+  .stat .val{ font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--text); }
+  .stat .val small{ color:var(--text-dim); font-size:11px; }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background:#232F41; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1><span class="dot"></span>핵스핀 세차운동 &amp; 라모어 공명 시뮬레이터</h1>
+    <p> 20115 전규영   
+        </header>
+
+  <main>
+    <!-- CONTROLS -->
+    <div id="controls">
+
+      <div class="group">
+        <div class="group-title">원자핵 (홀수 질량수, 스핀 1/2)</div>
+        <div class="nucleus-grid" id="nucleusGrid"></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">외부 자기장 B₀</div>
+        <div class="row"><span>세기</span><b id="b0val">1.50 T</b></div>
+        <input type="range" id="b0" min="0.1" max="14" step="0.01" value="1.5">
+        <div class="row" style="margin-top:2px;"><span style="color:var(--text-dimmer)">0.1 T</span><span style="color:var(--text-dimmer)">14 T (임상용 초고자장)</span></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">온도 T</div>
+        <div class="row"><span>온도</span><b id="tval">300 K</b></div>
+        <input type="range" id="temp" min="1" max="400" step="1" value="300">
+        <div class="row" style="margin-top:2px;"><span style="color:var(--text-dimmer)">1 K (극저온)</span><span style="color:var(--text-dimmer)">400 K</span></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">라모어 주파수 </div>
+        <div class="bigfreq" id="larmorBig">63.87<span>MHz</span></div>
+        <div class="readout"><span>볼츠만 편극도 (실제값)</span><b id="polReal">5.1 ppm</b></div>
+        <div class="readout"><span>업 : 다운 스핀 비율</span><b id="popRatio">50.0% : 50.0%</b></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">RF 펄스 <span id="resBadge" class="badge off"><span class="b-dot"></span>비공명</span></div>
+        <div class="row"><span>펄스 주파수</span><b id="pulseFreqVal" class="mono">63.870 MHz</b></div>
+        <input type="range" id="pulseFreq" min="0" max="1" step="0.0001" value="0.5">
+        <div class="row" style="margin-top:2px;"><span id="pulseMinLbl" style="color:var(--text-dimmer)"></span><span id="pulseMaxLbl" style="color:var(--text-dimmer)"></span></div>
+        <button class="snapbtn" id="snapBtn">⟶ 라모어 주파수에 정확히 맞추기</button>
+        <button id="pulseBtn" style="margin-top:12px;">펄스 인가</button>
+      </div>
+
+      <button id="resetBtn">세차운동 각도 초기화 (재평형)</button>
+    </div>
+
+    <!-- STAGE -->
+    <div id="stage">
+      <div id="canvasWrap">
+        <canvas id="macro"></canvas>
+        <div id="resonanceFlash"></div>
+        <div id="hint"> 마우스를 올리면 미시적으로(스핀 업/다운) 확인 가능</div>
+        <div id="loupe"><canvas id="loupeCanvas"></canvas><div class="loupe-label">미시적 스핀 앙상블</div></div>
+      </div>
+      <div id="footerStats">
+        <div class="stat"><div class="lbl">세차운동 축 기울기 θ</div><div class="val" id="thetaStat">0.0°</div></div>
+        <div class="stat"><div class="lbl">방위각 (세차 위상) φ</div><div class="val" id="phiStat">0°</div></div>
+        <div class="stat"><div class="lbl">주파수 오프셋 Δf</div><div class="val" id="dfStat">0.000 MHz</div></div>
+        <div class="stat"><div class="lbl">상태</div><div class="val" id="stateStat">평형 (M ∥ B₀)</div></div>
+        <div class="stat"><div class="lbl">핵 자기모멘트 μ 상대크기</div><div class="val" id="momentStat">1.00×</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ---------------------------------------------------------------
+// 1. PHYSICS DATA
+// ---------------------------------------------------------------
+const NUCLEI = [
+  { symbol:'¹H',  A:1,  name:'수소',   gamma: 42.577, negGamma:false },
+  { symbol:'¹³C', A:13, name:'탄소-13', gamma: 10.705, negGamma:false },
+  { symbol:'¹⁵N', A:15, name:'질소-15', gamma: 4.316,  negGamma:true  },
+  { symbol:'¹⁹F', A:19, name:'플루오린', gamma: 40.052, negGamma:false },
+  { symbol:'³¹P', A:31, name:'인-31',  gamma: 17.235, negGamma:false },
+];
+const h = 6.62607015e-34; // J·s
+const kB = 1.380649e-23;  // J/K
+
+let state = {
+  nucleusIdx: 0,
+  B0: 1.5,
+  T: 300,
+  pulseFreqMHz: 0,      // absolute MHz, set on init
+  isPulsing: false,
+  theta: 0.20,           // tip angle from B0 axis (rad) -- starts at baseline tilt
+  phi: 0,                // azimuthal precession phase (rad, slow cone sweep)
+  fastSpin: 0,           // fast self-rotation phase (rad, the nucleus spinning on its own axis)
+  mouse: {x:0,y:0,active:false},
+  trail: [],
+};
+
+function larmorMHz(){
+  const g = NUCLEI[state.nucleusIdx].gamma;
+  return g * state.B0;
+}
+
+function boltzmannPolarization(){
+  // P = tanh( h f / (2 kB T) )   (real physical value, dimensionless -1..1)
+  const f = larmorMHz() * 1e6; // Hz
+  const dE = h * f;
+  const x = dE / (2 * kB * state.T);
+  return Math.tanh(x); // real polarization
+}
+
+function visualUpFraction(){
+  // exaggerated (compressed) mapping so tiny real polarizations are still visible
+  // as an arrow-count imbalance in the microscope view.
+  const f = larmorMHz() * 1e6;
+  const dE = h * f;
+  const x = dE / (2 * kB * state.T);
+  const gain = 90;
+  const P = Math.tanh(gain * Math.sqrt(Math.max(x,0)));
+  return 0.5 + 0.5 * P; // fraction "up"
+}
+
+function momentScale(){
+  // net nuclear magnetic moment magnitude, relative -- grows with B0, shrinks with T,
+  // exactly like the visualized up/down population imbalance above.
+  const upFrac = visualUpFraction();
+  const p = Math.abs(2*upFrac - 1); // 0 (no net moment) .. 1 (fully polarized)
+  return 0.55 + 0.85 * p; // ~0.55x (weak field / hot) .. 1.4x (strong field / cold)
+}
+
+// ---------------------------------------------------------------
+// 2. DOM REFERENCES
+// ---------------------------------------------------------------
+const nucleusGrid = document.getElementById('nucleusGrid');
+const b0Slider = document.getElementById('b0');
+const tempSlider = document.getElementById('temp');
+const pulseFreqSlider = document.getElementById('pulseFreq');
+const pulseBtn = document.getElementById('pulseBtn');
+const snapBtn = document.getElementById('snapBtn');
+const resetBtn = document.getElementById('resetBtn');
+const resBadge = document.getElementById('resBadge');
+const resonanceFlash = document.getElementById('resonanceFlash');
+
+NUCLEI.forEach((n,i)=>{
+  const btn = document.createElement('div');
+  btn.className = 'nucleus-btn' + (i===0?' active':'');
+  btn.innerHTML = n.symbol;
+  btn.title = n.name;
+  btn.addEventListener('click', ()=>{
+    state.nucleusIdx = i;
+    [...nucleusGrid.children].forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    syncPulseFreqToLarmor();
+    updateReadouts();
+  });
+  nucleusGrid.appendChild(btn);
+});
+
+b0Slider.addEventListener('input', ()=>{
+  state.B0 = parseFloat(b0Slider.value);
+  updateReadouts();
+});
+tempSlider.addEventListener('input', ()=>{
+  state.T = parseFloat(tempSlider.value);
+  updateReadouts();
+});
+
+// Pulse frequency slider maps 0..1 to (larmor*0.9 .. larmor*1.1), rescaled whenever
+// nucleus/B0 changes so the resonance point stays reachable & fine-grained.
+function pulseSliderToFreq(v){
+  const L = larmorMHz();
+  const lo = L*0.9, hi = L*1.1;
+  return lo + v*(hi-lo);
+}
+function freqToPulseSlider(f){
+  const L = larmorMHz();
+  const lo = L*0.9, hi = L*1.1;
+  if(hi===lo) return 0.5;
+  return Math.min(1,Math.max(0,(f-lo)/(hi-lo)));
+}
+function syncPulseFreqToLarmor(){
+  state.pulseFreqMHz = larmorMHz();
+  pulseFreqSlider.value = 0.5;
+  updatePulseLabels();
+}
+pulseFreqSlider.addEventListener('input', ()=>{
+  state.pulseFreqMHz = pulseSliderToFreq(parseFloat(pulseFreqSlider.value));
+  updatePulseLabels();
+});
+snapBtn.addEventListener('click', ()=>{
+  syncPulseFreqToLarmor();
+});
+
+function startPulse(e){ e.preventDefault(); state.isPulsing = true; pulseBtn.classList.add('pulsing'); }
+function stopPulse(){ state.isPulsing = false; pulseBtn.classList.remove('pulsing'); }
+pulseBtn.addEventListener('mousedown', startPulse);
+pulseBtn.addEventListener('touchstart', startPulse, {passive:false});
+window.addEventListener('mouseup', stopPulse);
+window.addEventListener('touchend', stopPulse);
+
+resetBtn.addEventListener('click', ()=>{
+  state.theta = THETA_BASELINE;
+  resonanceFlash.style.opacity = 0;
+});
+
+function updatePulseLabels(){
+  document.getElementById('pulseFreqVal').textContent = state.pulseFreqMHz.toFixed(4)+' MHz';
+  const L = larmorMHz();
+  document.getElementById('pulseMinLbl').textContent = (L*0.9).toFixed(2)+' MHz';
+  document.getElementById('pulseMaxLbl').textContent = (L*1.1).toFixed(2)+' MHz';
+}
+
+function updateReadouts(){
+  document.getElementById('b0val').textContent = state.B0.toFixed(2)+' T';
+  document.getElementById('tval').textContent = Math.round(state.T)+' K';
+  const L = larmorMHz();
+  document.getElementById('larmorBig').innerHTML = L.toFixed(2)+'<span>MHz</span>';
+
+  const Preal = boltzmannPolarization();
+  let polTxt;
+  if (Math.abs(Preal) < 1e-3) polTxt = (Preal*1e6).toFixed(2)+' ppm';
+  else polTxt = (Preal*100).toFixed(3)+' %';
+  document.getElementById('polReal').textContent = polTxt;
+
+  const upFrac = visualUpFraction();
+  document.getElementById('popRatio').textContent =
+    (upFrac*100).toFixed(1)+'% : '+((1-upFrac)*100).toFixed(1)+'%';
+
+  // keep pulse slider's absolute freq bound sane if B0/nucleus changed drastically
+  updatePulseLabels();
+}
+updateReadouts();
+syncPulseFreqToLarmor();
+
+// ---------------------------------------------------------------
+// 3. CANVAS SETUP
+// ---------------------------------------------------------------
+const wrap = document.getElementById('canvasWrap');
+const canvas = document.getElementById('macro');
+const ctx = canvas.getContext('2d');
+const loupe = document.getElementById('loupe');
+const loupeCanvas = document.getElementById('loupeCanvas');
+const loupeCtx = loupeCanvas.getContext('2d');
+
+function resizeCanvas(){
+  const r = wrap.getBoundingClientRect();
+  canvas.width = r.width * devicePixelRatio;
+  canvas.height = r.height * devicePixelRatio;
+  canvas.style.width = r.width+'px';
+  canvas.style.height = r.height+'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+
+  loupeCanvas.width = 190*devicePixelRatio;
+  loupeCanvas.height = 190*devicePixelRatio;
+  loupeCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+wrap.addEventListener('mousemove', (e)=>{
+  const r = wrap.getBoundingClientRect();
+  state.mouse.x = e.clientX - r.left;
+  state.mouse.y = e.clientY - r.top;
+  state.mouse.active = true;
+  loupe.style.opacity = 1;
+  loupe.style.left = (state.mouse.x - 95)+'px';
+  loupe.style.top = (state.mouse.y - 95)+'px';
+});
+wrap.addEventListener('mouseleave', ()=>{
+  state.mouse.active = false;
+  loupe.style.opacity = 0;
+});
+
+// ---------------------------------------------------------------
+// 4. PROJECTION HELPERS (cavalier oblique projection)
+// ---------------------------------------------------------------
+function makeProjector(cx,cy,S){
+  const depthK = 0.55, ca = 0.866, sa = 0.5;
+  return function(x,y,z){
+    return {
+      x: cx + (x + y*depthK*ca) * S,
+      y: cy - (z + y*depthK*sa) * S
+    };
+  };
+}
+function v3cross(a,b){ return {x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x}; }
+function v3norm(a){ const l = Math.hypot(a.x,a.y,a.z)||1; return {x:a.x/l,y:a.y/l,z:a.z/l}; }
+function v3add(a,b,s){ s=s===undefined?1:s; return {x:a.x+b.x*s, y:a.y+b.y*s, z:a.z+b.z*s}; }
+
+const THETA_BASELINE = 0.20; // rad (~11.5°) -- small persistent tilt kept at rest purely so the
+                              // nucleus is always visibly precessing like a gyroscope; the real
+                              // equilibrium transverse magnetization is ~0, this is exaggerated.
+
+// pre-generate stable microscopic spin field (positions + individual phase offsets)
+const SPIN_COUNT = 44;
+const spinField = [];
+for(let i=0;i<SPIN_COUNT;i++){
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.sqrt(Math.random())*72;
+  spinField.push({
+    x: Math.cos(ang)*rad,
+    y: Math.sin(ang)*rad,
+    rnd: Math.random(),
+    phase: Math.random()*Math.PI*2,
+    speed: 0.6 + Math.random()*1.4
+  });
+}
+
+// ---------------------------------------------------------------
+// 5. ANIMATION LOOP
+// ---------------------------------------------------------------
+let lastT = performance.now();
+let flashPulseT = 0;
+
+function tick(now){
+  const dt = Math.min(0.05, (now-lastT)/1000);
+  lastT = now;
+
+  const L = larmorMHz();
+  const df = state.pulseFreqMHz - L;
+  const linewidth = Math.max(0.15, L*0.012); // resonance "linewidth" for grading effect
+  const effectiveness = 1/(1+Math.pow(df/linewidth,2));
+  const onResonance = effectiveness > 0.55;
+
+  resBadge.className = 'badge ' + (onResonance && state.isPulsing ? 'on':'off');
+  resBadge.innerHTML = '<span class="b-dot"></span>' + (onResonance ? '공명 근접' : '비공명');
+
+  // visual precession speed (scaled so different nuclei/B0 are visibly distinct but watchable)
+  const visualOmega = Math.min(5, Math.max(0.5, 0.5 + 0.9*Math.log10(L+1)));
+  const dir = NUCLEI[state.nucleusIdx].negGamma ? -1 : 1;
+  state.phi += dir * visualOmega * dt;
+
+  // tip angle dynamics
+  const maxRabi = 1.7; // rad/s at full effectiveness
+  if(state.isPulsing){
+    state.theta += maxRabi * effectiveness * dt;
+  } else {
+    // gentle relaxation back toward the small resting tilt (simplified T1)
+    state.theta += (THETA_BASELINE - state.theta) * 0.6 * dt;
+  }
+  // the nucleus keeps spinning on its own axis regardless of pulsing/resonance
+  state.fastSpin += 4.2 * dt;
+  // wrap theta smoothly using its raw value for sin/cos (Rabi nutation can exceed 90°)
+  const thetaWrapped = state.theta % (Math.PI*2);
+
+  // resonance flash + footer state text
+  const nearFlip = Math.abs(Math.sin(thetaWrapped)) > 0.98 && Math.cos(thetaWrapped) < 0.15 && Math.cos(thetaWrapped) > -0.15;
+  flashPulseT = onResonance && state.isPulsing ? Math.min(1, flashPulseT+dt*2) : Math.max(0, flashPulseT-dt*1.5);
+  resonanceFlash.style.opacity = (flashPulseT*0.5).toFixed(2);
+
+  document.getElementById('thetaStat').textContent = ((thetaWrapped*180/Math.PI+360)%360).toFixed(1)+'°';
+  document.getElementById('phiStat').textContent = ((state.phi*180/Math.PI)%360).toFixed(0)+'°';
+  document.getElementById('dfStat').textContent = (df>=0?'+':'')+df.toFixed(3)+' MHz';
+  let stateTxt = '평형 (M ∥ B₀)';
+  const degNow = (thetaWrapped*180/Math.PI+360)%360;
+  if(state.isPulsing && onResonance){
+    if(degNow>80 && degNow<100) stateTxt = ' 축이 90°로 누움';
+    else if(degNow>=100) stateTxt = ' 세차운동 지속(누텀)';
+    else stateTxt = '⚡공명 흡수 진행중';
+  } else if(state.isPulsing){
+    stateTxt = '펄스 인가(비공명, 거의 무반응)';
+  }
+  document.getElementById('stateStat').textContent = stateTxt;
+
+  const momentMag = momentScale();
+  document.getElementById('momentStat').textContent = momentMag.toFixed(2)+'×';
+
+  drawMacro(thetaWrapped, state.phi, state.fastSpin, momentMag, state.B0);
+  drawLoupe(thetaWrapped);
+
+  requestAnimationFrame(tick);
+}
+
+function drawMacro(theta, phi, fastSpin, momentMag, B0field){
+  const r = wrap.getBoundingClientRect();
+  const w = r.width, hgt = r.height;
+  ctx.clearRect(0,0,w,hgt);
+
+  const cx = w/2, cy = hgt/2 + 30;
+  const S = Math.min(w,hgt) * 0.30;
+  const proj = makeProjector(cx,cy,S);
+  const projDepth = (x,y,z)=> (x + y*0.55*0.866); // rough left-right depth proxy for z-ordering, unused directly
+
+  // equatorial reference ellipse
+  ctx.beginPath();
+  for(let i=0;i<=64;i++){
+    const a = i/64*Math.PI*2;
+    const p = proj(Math.cos(a), Math.sin(a), 0);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  }
+  ctx.strokeStyle = 'rgba(124,135,155,0.18)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3,4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // precession cone circle at current theta
+  const rc = Math.sin(theta);
+  const zc = Math.cos(theta);
+  ctx.beginPath();
+  for(let i=0;i<=64;i++){
+    const a = i/64*Math.PI*2;
+    const p = proj(rc*Math.cos(a), rc*Math.sin(a), zc);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  }
+  ctx.strokeStyle = 'rgba(79,209,197,0.28)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // B0 axis -- length, thickness and surrounding field-line density all scale with B0
+  const b0Norm = Math.min(1, Math.max(0, B0field/14));
+  const axisLenTop = 1.15 + 0.55*b0Norm;
+  const axisLenBot = 0.95 + 0.35*b0Norm;
+
+  const nSide = Math.round(b0Norm*6); // more parallel field lines = stronger B0
+  for(let i=1;i<=nSide;i++){
+    const off = i*0.15;
+    [off,-off].forEach(ox=>{
+      const a1 = proj(ox,0,axisLenTop*0.9);
+      const a2 = proj(ox,0,-axisLenBot*0.85);
+      ctx.beginPath();
+      ctx.moveTo(a2.x,a2.y); ctx.lineTo(a1.x,a1.y);
+      ctx.strokeStyle = 'rgba(231,236,244,0.14)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+  }
+
+  const topA = proj(0,0,axisLenTop), botA = proj(0,0,-axisLenBot);
+  ctx.beginPath();
+  ctx.moveTo(botA.x,botA.y); ctx.lineTo(topA.x,topA.y);
+  ctx.strokeStyle = 'rgba(231,236,244,0.4)';
+  ctx.lineWidth = 1.2 + 2.2*b0Norm;
+  ctx.stroke();
+  drawArrowhead(topA, {x:topA.x-botA.x,y:topA.y-botA.y}, 'rgba(231,236,244,0.65)', 7+4*b0Norm);
+  ctx.fillStyle = 'rgba(231,236,244,0.6)';
+  ctx.font = '600 13px JetBrains Mono, monospace';
+  ctx.fillText('B₀ = '+B0field.toFixed(2)+' T', topA.x+10, topA.y+4);
+
+  // trail
+  const tip = proj(rc*Math.cos(phi), rc*Math.sin(phi), zc);
+  state.trail.push({x:tip.x,y:tip.y});
+  if(state.trail.length>26) state.trail.shift();
+  ctx.beginPath();
+  state.trail.forEach((p,i)=>{
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.strokeStyle = 'rgba(79,209,197,0.25)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // ---- gyroscope-style nucleus: spin axis n = same direction as the old tip vector ----
+  const origin = proj(0,0,0);
+  const n = {x: rc*Math.cos(phi), y: rc*Math.sin(phi), z: zc}; // unit vector, pivoted at origin
+  const ref = Math.abs(n.y) < 0.9 ? {x:0,y:1,z:0} : {x:1,y:0,z:0};
+  const e1 = v3norm(v3cross(n, ref));
+  const e2 = v3cross(n, e1);
+
+  // angle arc between B0 (vertical) and the nucleus's own axis n -- shows how far it has tipped
+  const arcR = 0.30;
+  ctx.beginPath();
+  ctx.setLineDash([2,3]);
+  const arcSteps = 24;
+  for(let i=0;i<=arcSteps;i++){
+    const s = i/arcSteps*Math.min(theta, Math.PI);
+    const p = proj(Math.sin(s)*Math.cos(phi)*arcR, Math.sin(s)*Math.sin(phi)*arcR, Math.cos(s)*arcR);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  }
+  ctx.strokeStyle = 'rgba(251,191,36,0.65)';
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const midS = Math.min(theta,Math.PI)*0.5;
+  const midP = proj(Math.sin(midS)*Math.cos(phi)*(arcR+0.09), Math.sin(midS)*Math.sin(phi)*(arcR+0.09), Math.cos(midS)*(arcR+0.09));
+  ctx.fillStyle = 'rgba(251,191,36,0.85)';
+  ctx.font = '500 11px JetBrains Mono, monospace';
+  ctx.fillText('θ='+((theta*180/Math.PI)%360).toFixed(0)+'°', midP.x+4, midP.y);
+
+  // nucleus's own magnetic moment: length grows/shrinks with momentMag (B0 up / T down -> bigger)
+  const mmClamped = Math.min(1.35, momentMag);
+  const ballR3 = 0.16;
+  const ballCenter3 = {x:n.x*0.80*mmClamped, y:n.y*0.80*mmClamped, z:n.z*0.80*mmClamped};
+  const rodFar3 = {x:n.x*1.0*mmClamped, y:n.y*1.0*mmClamped, z:n.z*1.0*mmClamped};
+
+  // spin axis / magnetic-moment rod (through the ball, like a real gyroscope's stem) -- this
+  // IS the macroscopic magnetic moment vector μ produced by the field, drawn in the accent color
+  const rodStart = proj(0,0,0);
+  const rodEnd = proj(rodFar3.x, rodFar3.y, rodFar3.z);
+  ctx.beginPath();
+  ctx.moveTo(rodStart.x, rodStart.y);
+  ctx.lineTo(rodEnd.x, rodEnd.y);
+  ctx.strokeStyle = '#4FD1C5';
+  ctx.lineWidth = 2.4;
+  ctx.shadowColor = 'rgba(79,209,197,0.6)';
+  ctx.shadowBlur = 9;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  drawArrowhead(rodEnd, {x:rodEnd.x-rodStart.x,y:rodEnd.y-rodStart.y}, '#4FD1C5', 8);
+  ctx.fillStyle = 'rgba(79,209,197,0.85)';
+  ctx.font = '500 11px JetBrains Mono, monospace';
+  ctx.fillText('μ ('+momentMag.toFixed(2)+'×)', rodEnd.x+8, rodEnd.y-6);
+
+  // two dipole field-line loops through the poles, tilted+precessing with the axis n --
+  // this is the field the nucleus itself generates, and it tips together with n
+  const Rf = ballR3 * (1.5 + 0.5*mmClamped);
+  [e1, e2].forEach((ev, idx)=>{
+    ctx.beginPath();
+    for(let i=0;i<=48;i++){
+      const a = i/48*Math.PI*2;
+      const px = ballCenter3.x + (ev.x*Math.sin(a) + n.x*Math.cos(a))*Rf;
+      const py = ballCenter3.y + (ev.y*Math.sin(a) + n.y*Math.cos(a))*Rf;
+      const pz = ballCenter3.z + (ev.z*Math.sin(a) + n.z*Math.cos(a))*Rf;
+      const p = proj(px,py,pz);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    }
+    ctx.strokeStyle = idx===0 ? 'rgba(167,139,250,0.55)' : 'rgba(167,139,250,0.3)';
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+  });
+
+  // the nucleus itself: a shaded ball that visibly spins fast on its own axis n
+  const ballP = proj(ballCenter3.x, ballCenter3.y, ballCenter3.z);
+  const ballPxR = Math.max(10, ballR3 * S);
+
+  const cF = Math.cos(fastSpin), sF = Math.sin(fastSpin);
+  const hlDir = {x: e1.x*cF + e2.x*sF, y: e1.y*cF + e2.y*sF, z: e1.z*cF + e2.z*sF};
+  const hlWorld = {x: ballCenter3.x + hlDir.x*ballR3*0.85, y: ballCenter3.y + hlDir.y*ballR3*0.85, z: ballCenter3.z + hlDir.z*ballR3*0.85};
+  const hlP = proj(hlWorld.x, hlWorld.y, hlWorld.z);
+  let hgx = hlP.x - ballP.x, hgy = hlP.y - ballP.y;
+  const facingCam = Math.cos(fastSpin) * 0.6 + 0.4; // dims the highlight on the "far side" of the spin
+  const showHi = facingCam > -0.2;
+
+  const grad = ctx.createRadialGradient(
+    ballP.x + hgx*0.5, ballP.y + hgy*0.5, ballPxR*0.05,
+    ballP.x, ballP.y, ballPxR*1.05
+  );
+  if(showHi){
+    grad.addColorStop(0, 'rgba(207,242,168,0.95)');
+    grad.addColorStop(0.35, '#5FA83C');
+  } else {
+    grad.addColorStop(0, '#3E7A2A');
+  }
+  grad.addColorStop(1, '#1F4A16');
+
+  ctx.beginPath();
+  ctx.arc(ballP.x, ballP.y, ballPxR, 0, Math.PI*2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,40,15,0.6)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(124,135,155,0.55)';
+  ctx.font = '500 11px JetBrains Mono, monospace';
+  ctx.fillText('핵 (자전 + 세차운동)', origin.x+14, origin.y-8);
+
+  // RF coil hint when pulsing
+  if(state.isPulsing){
+    const glow = 0.4 + 0.4*Math.abs(Math.sin(now_glow()));
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, S*1.35, S*0.5, 0, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(251,191,36,${glow*0.5})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+let _glowT = 0;
+function now_glow(){ _glowT += 0.15; return _glowT; }
+
+function drawArrowhead(tip, dir, color, size){
+  const len = Math.hypot(dir.x,dir.y)||1;
+  const ux = dir.x/len, uy = dir.y/len;
+  const leftA = Math.atan2(uy,ux)+2.5;
+  const rightA = Math.atan2(uy,ux)-2.5;
+  ctx.beginPath();
+  ctx.moveTo(tip.x,tip.y);
+  ctx.lineTo(tip.x+Math.cos(leftA)*size, tip.y+Math.sin(leftA)*size);
+  ctx.lineTo(tip.x+Math.cos(rightA)*size, tip.y+Math.sin(rightA)*size);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawLoupe(theta){
+  loupeCtx.clearRect(0,0,190,190);
+  loupeCtx.save();
+  loupeCtx.beginPath();
+  loupeCtx.arc(95,95,95,0,Math.PI*2);
+  loupeCtx.clip();
+  loupeCtx.fillStyle = '#050810';
+  loupeCtx.fillRect(0,0,190,190);
+
+  // faint field lines
+  loupeCtx.strokeStyle = 'rgba(124,135,155,0.12)';
+  loupeCtx.lineWidth = 1;
+  for(let i=-2;i<=2;i++){
+    loupeCtx.beginPath();
+    loupeCtx.moveTo(95+i*20,0);
+    loupeCtx.lineTo(95+i*20,190);
+    loupeCtx.stroke();
+  }
+
+  const upFrac = visualUpFraction();
+  const t = performance.now()/1000;
+  const collectiveTilt = theta; // radians, shared tilt while pulsing/resonating
+
+  spinField.forEach(s=>{
+    const isUp = s.rnd < upFrac;
+    const wobble = Math.sin(t*s.speed + s.phase) * 0.35; // incoherent individual phase
+    const baseAngle = isUp ? -Math.PI/2 : Math.PI/2; // screen: up = -90deg, down = +90deg
+    // collective tilt bends both populations toward transverse plane together
+    const tiltSign = isUp ? 1 : -1;
+    const ang = baseAngle + tiltSign*collectiveTilt*0.9 + wobble*0.5;
+    const len = 13;
+    const px = 95+s.x, py = 95+s.y;
+    const dx = Math.cos(ang)*len, dy = Math.sin(ang)*len;
+
+    loupeCtx.beginPath();
+    loupeCtx.moveTo(px-dx*0.4, py-dy*0.4);
+    loupeCtx.lineTo(px+dx*0.6, py+dy*0.6);
+    loupeCtx.strokeStyle = isUp ? '#4FD1C5' : '#F472B6';
+    loupeCtx.lineWidth = 2;
+    loupeCtx.lineCap = 'round';
+    loupeCtx.stroke();
+
+    // arrowhead
+    const ah = Math.atan2(dy,dx);
+    const hx = px+dx*0.6, hy = py+dy*0.6;
+    loupeCtx.beginPath();
+    loupeCtx.moveTo(hx,hy);
+    loupeCtx.lineTo(hx+Math.cos(ah+2.6)*4, hy+Math.sin(ah+2.6)*4);
+    loupeCtx.lineTo(hx+Math.cos(ah-2.6)*4, hy+Math.sin(ah-2.6)*4);
+    loupeCtx.closePath();
+    loupeCtx.fillStyle = isUp ? '#4FD1C5' : '#F472B6';
+    loupeCtx.fill();
+  });
+
+  loupeCtx.restore();
+
+  // ring border tint by ratio
+  loupeCtx.beginPath();
+  loupeCtx.arc(95,95,93,0,Math.PI*2);
+  loupeCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+  loupeCtx.lineWidth = 2;
+  loupeCtx.stroke();
+}
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
